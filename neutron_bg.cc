@@ -15,6 +15,9 @@
 #include <G4SystemOfUnits.hh>   // physical units such as `m` for metre
 #include <G4Event.hh>           // needed to inject primary particles into an event
 #include <G4Box.hh>             // for creating shapes in the geometry
+#include <G4SubtractionSolid.hh>// for boolean solids
+#include <G4UnionSolid.hh>      //
+#include <G4MultiUnion.hh>      //
 #include <G4Sphere.hh>          // for creating shapes in the geometry
 #include <FTFP_BERT.hh>         // our choice of physics list
 #include <G4RandomDirection.hh> // for launching particles in random directions
@@ -80,9 +83,16 @@ auto my_generator(const my& my) {
     std::uniform_real_distribution<> angle_theta(0.0, 2.0 * M_PI);
     std::uniform_real_distribution<> angle_u(-1.0, 1.0);
 
+    std::uniform_real_distribution<> angle_theta_dir(0.0, 2 * M_PI);
+    std::uniform_real_distribution<> angle_u_dir(-1.0, 1.0);
+
     G4double theta = angle_theta(gen);   
     G4double u = angle_u(gen);           
     G4double phi = std::acos(u); 
+
+    G4double theta_dir = angle_theta_dir(gen);   
+    G4double u_dir = angle_u_dir(gen);           
+    G4double phi_dir = std::acos(u_dir);
     
     G4double rad = 2 * m;
     //G4double phi = G4UniformRand() * pi;
@@ -90,7 +100,17 @@ auto my_generator(const my& my) {
     //std::cout << "rand is : " << 2 * G4UniformRand() << std::endl;
     G4double x = rad * sin(phi) * cos(theta);
     G4double y = rad * sin(phi) * sin(theta);
-    G4double z = rad * cos(phi);  
+    G4double z = rad * cos(phi);
+    /*G4double x = - rad;
+    G4double y = 0;
+    G4double z = 0;*/
+
+    G4double radial2 = (x*x + y*y + z*z);
+    G4double radial = std::pow(radial2, 1/2);
+
+    G4double x_dir = -radial * sin(phi_dir) * cos(theta_dir);
+    G4double y_dir = -radial * sin(phi_dir) * sin(theta_dir);
+    G4double z_dir = -radial * cos(phi_dir);
 
     //To generate primary neutrons with energies according to the flux
     if (!inFile.is_open()) {
@@ -119,10 +139,8 @@ std::vector<G4double> cdf;
         somme += p;
         cdf.push_back(somme);
     }
-
     
     G4double r = G4UniformRand() * somme;
-
    
     auto it = std::lower_bound(cdf.begin(), cdf.end(), r);
     size_t index = std::distance(cdf.begin(), it);
@@ -135,7 +153,7 @@ std::vector<G4double> cdf;
     particle_gun -> SetParticleEnergy(energy[index]*MeV);
     //std::cout << energy[index]*MeV <<" " <<  flux[index] << std::endl;
     particle_gun -> SetParticlePosition({x, y, z});
-    particle_gun -> SetParticleMomentumDirection({-x, -y ,-z});
+    particle_gun -> SetParticleMomentumDirection({x_dir, y_dir ,z_dir});
     particle_gun -> GeneratePrimaryVertex(event);
 
 
@@ -154,6 +172,9 @@ n4::sensitive_detector* sensitive_detector(unsigned& n_event) {
     auto parentID = track -> GetParentID();
     auto step_number = track -> GetCurrentStepNumber();
     auto globalTime = track -> GetGlobalTime();
+
+    const G4ThreeVector& preStepPosition = pre->GetPosition();
+    const G4ThreeVector& postStepPosition = post->GetPosition();
 
     auto initial_k_energy = pre  -> GetKineticEnergy();
     
@@ -194,12 +215,17 @@ n4::sensitive_detector* sensitive_detector(unsigned& n_event) {
 
     G4double M = numerator / denominator * MeV_to_amu * -1; // relativistic approach, works for all mass target particles
     int target = std::round(M);
+	 output<<"Event "<<n_event<<":"<<std::endl;
 
+	output <<  trk_id << " ,parent = " << parentID << " " << name << " ,process = " << process << " ,cell = " << cell << " ,initial = " << preStepPosition.z()<< " " << initial_k_energy << " ,end = "  <<"  "<< postStepPosition.z() << ", " << k_energy_left << std::endl;
+    if (name == "neutron") {
+    }
     if (process == "hadElastic" && name == "neutron") {
-        output << n_event << " " << trk_id << " " << parentID << " " << name << " " << process << " " << cell << " " << initial_k_energy << " " << k_energy_left << " " << initial_k_energy-k_energy_left << " " << target << " " << globalTime << " " << pos_interaction.x() << " " << pos_interaction.y() << " " << pos_interaction.z() << "\n";
+        //output << n_event << " " << trk_id << " " << parentID << " " << name << " " << process << " " << cell << " " << initial_k_energy << " " << k_energy_left << " " << initial_k_energy-k_energy_left << " " << target << " " << globalTime << " " << pos_interaction.x() << " " << pos_interaction.y() << " " << pos_interaction.z() << "\n";
     }
 
     auto secondaries = step -> GetSecondaryInCurrentStep();
+	 if (secondaries->size()>0)output<<"          number of secondaries = "<<secondaries->size()<<std::endl;
     if (secondaries -> size() > 0) {
         for (int i=0; i<secondaries -> size(); i++) {
             auto secondary = secondaries -> at(i);
@@ -242,7 +268,7 @@ n4::sensitive_detector* sensitive_detector(unsigned& n_event) {
         }
 
         if (sec_energy != sec_final_energy) {
-            output << n_event << " " << trk_id << " " << parentID << " " << name << " " << sec_process << " " << sec_cell << " " << sec_energy << " " << sec_final_energy << " " << sec_energy-sec_final_energy << " " << "0" << " " << sec_time << " " << pos_interaction.x() << " " << pos_interaction.y() << " " << pos_interaction.z() << "\n";
+            output<<"-> Secondary "<< n_event << " " << trk_id << " " << parentID << " " << name << " " << sec_process << " " << sec_cell << " " << sec_energy << " " << sec_final_energy << " " << sec_energy-sec_final_energy << " " << "0" << " " << sec_time << " " << pos_interaction.x() << " " << pos_interaction.y() << " " << pos_interaction.z() << "\n";
         }
 
         if (process == "Transportation") {
@@ -331,7 +357,7 @@ auto my_geometry(const my& my) {
   auto ring_length = 7.01 * mm;
   auto ring_z = disc_cath_z + 418.595 * mm + ring_length/2;
 
-  auto world_rad = gasdrift_diam/2 + 150 * cm;
+  auto world_rad = gasdrift_diam/2 + 180 * cm;
 
   auto water  = n4::material("G4_WATER");
   auto air    = n4::material("G4_AIR");
@@ -341,32 +367,80 @@ auto my_geometry(const my& my) {
   auto steel  = n4::material("G4_STAINLESS-STEEL");
   auto copper = n4::material("G4_Cu");
   auto teflon = n4::material("G4_TEFLON");
- 
-  G4double M_Xe = 131.29*g/mole;
-  G4Element* Xe = new G4Element("Xenon","Xe", 54., M_Xe);
 
-  //G4double pressure = 5*bar; 
-  auto pressure = my.msg_pressure;
+  auto lead = n4::material("G4_Pb");
+  auto ch2 = n4::material("G4_POLYETHYLENE");
+ 
+  G4double pressure = 20 * bar;
+  std::cout << "my pressure is :" << pressure / bar<< std::endl;
   G4double temperature = 293.*kelvin; 
   G4double R =  8.3145*joule/(mole*kelvin);
-  G4double density = (pressure * M_Xe) / (R * temperature);
   
-  G4Material* xenon = new G4Material("Xenon", density, 1, kStateGas, temperature, pressure); 
-  xenon->AddElement(Xe, 1);
+  G4String gas_sel = "Xe";
+  G4Material* gas = nullptr;
 
-  std::cout <<  " density is :" << xenon->GetDensity() / (g/cm3) << " g/cm3" << " Temperature is : " << xenon->GetTemperature()/kelvin << " Kelvin" << " Pressure is : " << (xenon->GetPressure()  / bar)  << " bar" << std::endl;
-  
+ if (gas_sel == "Ar")
+  { std::cout << "enter in the loop" << std::endl;
+
+     G4double M =  39.9480*g/mole;
+     
+     G4Element* Ar = new G4Element("Argon","Ar", 18., M);
+
+     G4double density = (pressure * M) / (R * temperature);
+
+     gas = new G4Material("Argon", density, 1, kStateGas, temperature, pressure); 
+     gas->AddElement(Ar, 1);
+
+     std::cout << "M is : " << M << " Ar is : " << Ar << " density is : " << density << " gas is : " << gas << std::endl;
+  }
+
+  if (gas_sel == "Xe")
+  //if (gas_sel == 2)
+  {
+    G4double M = 131.29*g/mole;
+    G4Element* Xe = new G4Element("Xenon","Xe", 54., M);
+
+    G4double density = (pressure * M) / (R * temperature);
+
+    gas = new G4Material("Xenon", density, 1, kStateGas, temperature, pressure); 
+    gas->AddElement(Xe, 1);
+
+    std::cout << "M is : " << M << " Xe is : " << Xe << " density is : " << density << " gas is : " << gas << std::endl;
+
+  }
 //xenon->GetDensity()
   //temperature = 293.15*kelvin; 
   //pressure = 14*100000*pascal; 
   //gasMaterial = new G4Material("XenonGas", density = xenon->GetDensity(), 1, kStateGas, temperature, pressure);
 
-  auto world  = n4::sphere("world").r(world_rad).volume(vaccum);
+  auto world  = n4::sphere("world").r(world_rad).volume(air);
 
+  ////////////////////
+  //Shielding layers//
+  ////////////////////
+  G4double thick_gap = 10 * mm;
+  G4double thick_pb = 150 * mm;
+  G4double thick_ch2 = 300 * mm;
+  G4double leng_pb = vessel_length + closure_vessel_length * 2 + thick_gap * 2;
+  G4double wid_pb = closure_vessel_diam_ext + thick_gap * 2;
+  G4double leng_ch2 = leng_pb + thick_pb * 2;
+  G4double wid_ch2 = leng_pb + thick_pb * 2;
+  auto pb_inner_solid = new G4Box("pb_inner", wid_pb/2, wid_pb/2, leng_pb/2);
+  auto pb_outer_solid = new G4Box("pb_outer", wid_pb/2 + thick_pb, wid_pb/2 + thick_pb, leng_pb/2 + thick_pb);
+  G4SubtractionSolid* pb_hollow = new G4SubtractionSolid("pb_hollow", pb_outer_solid, pb_inner_solid);
+  auto pb_logical = new G4LogicalVolume(pb_hollow, lead, "pb_hollow");
+  auto ch2_inner_solid = new G4Box("ch2_inner", wid_ch2/2, wid_ch2/2, leng_ch2/2);
+  auto ch2_outer_solid = new G4Box("ch2_outer", wid_ch2/2 + thick_ch2, wid_ch2/2 + thick_ch2, leng_ch2/2 + thick_ch2);
+  G4SubtractionSolid* ch2_hollow = new G4SubtractionSolid("ch2_hollow", ch2_outer_solid, ch2_inner_solid);
+  auto ch2_logical = new G4LogicalVolume(ch2_hollow, lead, "ch2_hollow");
+
+
+  ////////////
+  //Detector//
+  ////////////
   auto vessel = n4::tubs  ("vessel" ).r_inner(vessel_diam_int/2).r_delta(vessel_diam_ext/2 - vessel_diam_int/2).z(vessel_length).place(steel).at(0, 0, disc_cath_z).in(world).now();
   auto closure_vessel1 = n4::tubs  ("closure_vessel1" ).r(closure_vessel_diam_ext/2).z(closure_vessel_length).place(steel).at(0, 0, closure_vessel_z).in(world).now();
   auto closure_vessel2 = n4::tubs  ("closure_vessel2" ).r(closure_vessel_diam_ext/2).z(closure_vessel_length).place(steel).at(0, 0, - closure_vessel_z).in(world).now();
-
 
   auto disc_cathode = n4::tubs  ("disc_cathode" ).r(disc_cath_diam/2).z(disc_cath_length).place(steel).at(0, 0, disc_cath_z).in(world).now();
   
@@ -389,7 +463,9 @@ auto my_geometry(const my& my) {
   auto ring2 = n4::tubs  ("ring2" ).r_inner(ring_diam_int/2).r_delta(ring_diam_ext/2 - ring_diam_int/2).z(ring_length).place(copper).at(0, 0, -(ring_z - ring_space)).in(world).now();
 
 }
-  auto gasdrift = n4::tubs  ("gasdrift" ).r(gasdrift_diam/2).z(gasdrift_length).sensitive(sensitive_detector(n_event)).place(xenon).in(world).now();
+  auto gasdrift = n4::tubs  ("gasdrift" ).r(gasdrift_diam/2).z(gasdrift_length).sensitive(sensitive_detector(n_event)).place(gas).in(world).now();
+  new G4PVPlacement(nullptr, {}, pb_logical, "pb_hollow", world, false, 0,true);
+  new G4PVPlacement(nullptr, {}, ch2_logical, "ch2_hollow", world, false, 0,true);
 
   return n4::place(world).now();
 }
