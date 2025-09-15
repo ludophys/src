@@ -173,9 +173,6 @@ n4::sensitive_detector* sensitive_detector(unsigned& n_event) {
     auto step_number = track -> GetCurrentStepNumber();
     auto globalTime = track -> GetGlobalTime();
 
-    const G4ThreeVector& preStepPosition = pre->GetPosition();
-    const G4ThreeVector& postStepPosition = post->GetPosition();
-
     auto initial_k_energy = pre  -> GetKineticEnergy();
     
     auto pos = pre -> GetPosition();
@@ -215,17 +212,12 @@ n4::sensitive_detector* sensitive_detector(unsigned& n_event) {
 
     G4double M = numerator / denominator * MeV_to_amu * -1; // relativistic approach, works for all mass target particles
     int target = std::round(M);
-	 output<<"Event "<<n_event<<":"<<std::endl;
 
-	output <<  trk_id << " ,parent = " << parentID << " " << name << " ,process = " << process << " ,cell = " << cell << " ,initial = " << preStepPosition.z()<< " " << initial_k_energy << " ,end = "  <<"  "<< postStepPosition.z() << ", " << k_energy_left << std::endl;
-    if (name == "neutron") {
-    }
     if (process == "hadElastic" && name == "neutron") {
-        //output << n_event << " " << trk_id << " " << parentID << " " << name << " " << process << " " << cell << " " << initial_k_energy << " " << k_energy_left << " " << initial_k_energy-k_energy_left << " " << target << " " << globalTime << " " << pos_interaction.x() << " " << pos_interaction.y() << " " << pos_interaction.z() << "\n";
+        output << n_event << " " << trk_id << " " << parentID << " " << name << " " << process << " " << cell << " " << initial_k_energy << " " << k_energy_left << " " << initial_k_energy-k_energy_left << " " << target << " " << globalTime << " " << pos_interaction.x() << " " << pos_interaction.y() << " " << pos_interaction.z() << "\n";
     }
 
     auto secondaries = step -> GetSecondaryInCurrentStep();
-	 if (secondaries->size()>0)output<<"          number of secondaries = "<<secondaries->size()<<std::endl;
     if (secondaries -> size() > 0) {
         for (int i=0; i<secondaries -> size(); i++) {
             auto secondary = secondaries -> at(i);
@@ -268,7 +260,7 @@ n4::sensitive_detector* sensitive_detector(unsigned& n_event) {
         }
 
         if (sec_energy != sec_final_energy) {
-            output<<"-> Secondary "<< n_event << " " << trk_id << " " << parentID << " " << name << " " << sec_process << " " << sec_cell << " " << sec_energy << " " << sec_final_energy << " " << sec_energy-sec_final_energy << " " << "0" << " " << sec_time << " " << pos_interaction.x() << " " << pos_interaction.y() << " " << pos_interaction.z() << "\n";
+            output << n_event << " " << trk_id << " " << parentID << " " << name << " " << sec_process << " " << sec_cell << " " << sec_energy << " " << sec_final_energy << " " << sec_energy-sec_final_energy << " " << "0" << " " << sec_time << " " << pos_interaction.x() << " " << pos_interaction.y() << " " << pos_interaction.z() << "\n";
         }
 
         if (process == "Transportation") {
@@ -432,7 +424,7 @@ auto my_geometry(const my& my) {
   auto ch2_inner_solid = new G4Box("ch2_inner", wid_ch2/2, wid_ch2/2, leng_ch2/2);
   auto ch2_outer_solid = new G4Box("ch2_outer", wid_ch2/2 + thick_ch2, wid_ch2/2 + thick_ch2, leng_ch2/2 + thick_ch2);
   G4SubtractionSolid* ch2_hollow = new G4SubtractionSolid("ch2_hollow", ch2_outer_solid, ch2_inner_solid);
-  auto ch2_logical = new G4LogicalVolume(ch2_hollow, lead, "ch2_hollow");
+  auto ch2_logical = new G4LogicalVolume(ch2_hollow, ch2, "ch2_hollow");
 
 
   ////////////
