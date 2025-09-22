@@ -62,8 +62,10 @@
 
 #                        name           depth red green blue opacity
 /vis/geometry/set/colour world          0    0    0    1     .3
+/vis/geometry/set/colour pb_hollow      0    0   0.5  0.5    .3
+/vis/geometry/set/colour ch2_hollow     0   0.5    0  0.5     .3
 /vis/geometry/set/colour vessel         0    0    0    0     .3
-/vis/geometry/set/colour gasdrift       0    0.5    0.5    0     .3
+/vis/geometry/set/colour gasdrift       0   0.5  0.5   0     .3
 
 /vis/geometry/set/colour ring1           0    1    0    0     .3
 /vis/geometry/set/colour ring2           0    1    0    0     .3
@@ -82,6 +84,11 @@
 # Two different ways of setting the light source angle
 /vis/viewer/set/lightsThetaPhi  150 120
 /vis/viewer/set/lightsVector    2 3 4
+
+# cross sectional view
+#/vis/viewer/set/clipVolume true
+#/vis/viewer/set/clipPlane 1 0 0 1 0 cm
+#/vis/viewer/set/slipPlane 0 -1 0 0
 
 # Re-establish auto refreshing and verbosity:
 /vis/viewer/set/autoRefresh true
