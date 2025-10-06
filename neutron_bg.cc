@@ -94,7 +94,9 @@ auto my_generator(const my& my) {
     G4double u_dir = angle_u_dir(gen);           
     G4double phi_dir = std::acos(u_dir);
     
-    G4double rad = 2 * m;
+    G4double rad = 1685.31 * mm;
+    
+
     //G4double phi = G4UniformRand() * pi;
     //G4double theta = G4UniformRand() * pi;
     //std::cout << "rand is : " << 2 * G4UniformRand() << std::endl;
@@ -151,7 +153,7 @@ std::vector<G4double> cdf;
     auto particle_gun = std::make_shared<G4ParticleGun>(neutron, 1); // 1 particle
     G4double mass = neutron -> GetPDGMass();
     particle_gun -> SetParticleEnergy(energy[index]*MeV);
-    //std::cout << energy[index]*MeV <<" " <<  flux[index] << std::endl;
+    //std::cout << energy[index]*MeV << std::endl;
     particle_gun -> SetParticlePosition({x, y, z});
     particle_gun -> SetParticleMomentumDirection({x_dir, y_dir ,z_dir});
     particle_gun -> GeneratePrimaryVertex(event);
@@ -302,7 +304,7 @@ n4::actions* create_actions(my& my, unsigned& n_event) {
 }
 
 auto my_geometry(const my& my) {
-
+  n4::place::check_overlaps_switch_on();
   //Definition of gas properties
   G4NistManager* man = G4NistManager::Instance();
   man->SetVerbose(1);
@@ -338,7 +340,7 @@ auto my_geometry(const my& my) {
   auto tube_teflon_diam_int = 570.618 * mm;
   auto tube_teflon_diam_ext = tube_teflon_diam_int + 2 * 3.453 * mm;
   auto tube_teflon_length = 400 * mm;
-  auto tube_teflon_z = cont_EL_z + tube_teflon_length/2 + 5 * mm;
+  auto tube_teflon_z = cont_EL_z + tube_teflon_length/2 + 5.25 * mm;
 
   auto gasdrift_diam =  tube_teflon_diam_int;
   auto gasdrift_length = 2 * tube_teflon_length + 4 * 5 * mm;
@@ -349,8 +351,8 @@ auto my_geometry(const my& my) {
   auto ring_length = 7.01 * mm;
   auto ring_z = disc_cath_z + 418.595 * mm + ring_length/2;
 
-  auto world_rad = gasdrift_diam/2 + 180 * cm;
-
+  auto world_rad = gasdrift_diam/2 + 140 * cm;
+  std::cout << "world rad is : " << world_rad/mm << std::endl;
   auto water  = n4::material("G4_WATER");
   auto air    = n4::material("G4_AIR");
   
@@ -412,7 +414,7 @@ auto my_geometry(const my& my) {
   ////////////////////
   G4double thick_gap = 10 * mm;
   G4double thick_pb = 150 * mm;
-  G4double thick_ch2 = 300 * mm;
+  G4double thick_ch2 = 150 * mm;
   G4double leng_pb = vessel_length + closure_vessel_length * 2 + thick_gap * 2;
   G4double wid_pb = closure_vessel_diam_ext + thick_gap * 2;
   G4double leng_ch2 = leng_pb + thick_pb * 2;
@@ -431,8 +433,8 @@ auto my_geometry(const my& my) {
   //Detector//
   ////////////
   auto vessel = n4::tubs  ("vessel" ).r_inner(vessel_diam_int/2).r_delta(vessel_diam_ext/2 - vessel_diam_int/2).z(vessel_length).place(steel).at(0, 0, disc_cath_z).in(world).now();
-  auto closure_vessel1 = n4::tubs  ("closure_vessel1" ).r(closure_vessel_diam_ext/2).z(closure_vessel_length).place(steel).at(0, 0, closure_vessel_z).in(world).now();
-  auto closure_vessel2 = n4::tubs  ("closure_vessel2" ).r(closure_vessel_diam_ext/2).z(closure_vessel_length).place(steel).at(0, 0, - closure_vessel_z).in(world).now();
+  //auto closure_vessel1 = n4::tubs  ("closure_vessel1" ).r(closure_vessel_diam_ext/2).z(closure_vessel_length).place(steel).at(0, 0, closure_vessel_z).in(world).now();
+  //auto closure_vessel2 = n4::tubs  ("closure_vessel2" ).r(closure_vessel_diam_ext/2).z(closure_vessel_length).place(steel).at(0, 0, - closure_vessel_z).in(world).now();
 
   auto disc_cathode = n4::tubs  ("disc_cathode" ).r(disc_cath_diam/2).z(disc_cath_length).place(steel).at(0, 0, disc_cath_z).in(world).now();
   
@@ -465,8 +467,12 @@ auto my_geometry(const my& my) {
 int main(int argc, char* argv[]) {
  
   n_event = 0;
-  output.open ("output.txt");
-  inFile.open("flux/bckg_flux_1500_target_v2_norm.txt");
+  output.open ("runs/xenon/23/output.txt");
+  //output.open ("runs/argon/24/output.txt");
+  /*inFile.open("flux/bckg_flux_1500_target_v2_norm.txt");
+  std::cout << "Flux used is : bckg_flux_1500_target_v2_norm.txt" << std::endl;*/
+  inFile.open("flux/new_flux_norm_interpol.txt");
+  std::cout << "Flux used is : new_flux_norm_interpol.txt" << std::endl;
   my my;
 
   G4int physics_verbosity = 0;
