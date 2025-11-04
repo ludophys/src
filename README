@@ -1,0 +1,103 @@
+Since our Rocky Linux 8.7 system requires root privileges for standard Nix installation and nix-portable seems not compatible with the installation instructions detailed in the documentation of nain4 project, we'll use Apptainer containers to provide you with a fully functional Nix environment. For more information about using Apptainer on our cluster, please refer to our documentation at: https://scc.dipc.org/docs/software/containers/apptainer/
+
+==========================
+INSTALLATION INSTRUCTIONS
+==========================
+--------------------------------------
+STEP 1: Initial Setup (One-time only)
+--------------------------------------
+0. Log in to Hyperion(Atlas is not suitable for nix):
+ssh hyperion
+srun -N1 -n1 --mem=16g --time=24:00:00 --pty /bin/bash
+(require a node to run with a 16 GB memory and a time of 24 hours)
+
+1. cd to lscratch and load the Apptainer module:
+cd /lscratch/$USER
+module load Apptainer
+
+2. Pull the Nix container image:
+apptainer pull docker://nixos/nix:latest
+
+3. Create a writable sandbox from the image:
+apptainer build --sandbox nix-sandbox/ nix_latest.sif
+
+4. Create necessary mount points in the sandbox:
+mkdir -p nix-sandbox/scratch && mkdir -p nix-sandbox/lscratch && mkdir -p nix-sandbox/dipc && mkdir -p nix-sandbox/data && mkdir -p nix-sandbox/home
+
+----------------------------------
+STEP 2: Create Your nain4 Project
+----------------------------------
+Bootstrap a new nain4 project (replace "my-project" with your desired project name):
+apptainer exec --writable -B /lscratch:/lscratch nix-sandbox/ nix --extra-experimental-features 'nix-command flakes' run github:jacg/nain4#bootstrap-client-project /lscratch/$USER/neutron_bg neutron_bg "Neutron background simulation"
+(Note: This initial setup may take 30-60 minutes as it downloads all necessary dependencies.)
+
+-------------------------------
+STEP 3: Work with Your Project
+-------------------------------
+1. Navigate to your project:
+cd /lscratch/$USER/neutron_bg
+
+2. Enter the development environment:
+apptainer exec --writable -B /lscratch:/lscratch /lscratch/$USER/nix-sandbox/ nix --extra-experimental-features 'nix-command flakes' develop
+(You're now in a shell with all nain4 dependencies (Geant4, ROOT, etc.) available.)
+
+3. Move the folders and files to /scratch/ (in /lscratch/$USER):
+chmod -R 777 nix-sandbox/ && mv nix-sandbox/ /scratch/$USER/ && mv nix_latest.sif /scratch/$USER/ && mv neutron_bg/ /scratch/$USER/
+
+4. Usage of the project(in the container):
+just install
+just run -n 1000
+just run-no-install -n 1000
+
+Note 1: One needs to customize the macros, the source cc file, the justfile.
+Note 2: /scratch/ directory is for submittng jobs to the cluster.
+
+----------------------------------------
+STEP 4: Convenience Setup (Recommended)
+----------------------------------------
+To simplify daily use, add these lines to your ~/.bashrc file:
+
+# Nix/nain4 aliases
+alias nix-shell='apptainer exec --writable -B /scratch:/scratch /scratch/$USER/nix-sandbox/ nix --extra-experimental-features "nix-command flakes"'
+alias nain4-dev='cd /scratch/$USER/my-neutrino-project && apptainer exec --writable -B /scratch:/scratch /scratch/$USER/nix-sandbox/ nix --extra-experimental-features "nix-command flakes" develop'
+
+# Then reload your bashrc:
+source ~/.bashrc
+
+--------------------------------
+STEP 5: Using nain4 in HPC Jobs
+--------------------------------
+Simplified example SLURM job script (batch_script.slurm):
+
+#!/bin/bash
+#SBATCH --job-name=xxx
+#SBATCH --partition=general
+#SBATCH --qos=regular
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --array=0-99
+#SBATCH --mem=16G
+#SBATCH --time=24:00:00
+#SBATCH --output=xxx_%j.out
+#SBATCH --error=xxx_%j.err
+#SBATCH --mail-user=xxx@dipc.org
+#SBATCH --mail-type=ALL
+
+module load Apptainer
+cd /scratch/$USER/my-project
+apptainer exec --writable -B /scratch:/scratch /scratch/$USER/nix-sandbox/ nix --extra-experimental-features 'nix-command flakes' develop --command bash -c "just run-no-install -n 100000000 ${SLURM_JOB_ID}"
+
+------------------
+STEP 6: Send jobs
+------------------
+From any location in /scratch/$USER, execute this:
+sbatch batch_script.slurm
+
+================
+IMPORTANT NOTES
+================
+1. Warnings: You can safely ignore warnings about "passwd file doesn't exist"
+  and "group file doesn't exist". These don't affect functionality.
+2. Documentation: For more details about Apptainer on our cluster, visit:
+  https://scc.dipc.org/docs/software/containers/apptainer/
