@@ -16,10 +16,10 @@ cd /lscratch/$USER
 module load Apptainer
 
 2. Pull the Nix container image:
-apptainer pull docker://nixos/nix:latest
+apptainer pull docker://nixos/nix:2.32.1
 
 3. Create a writable sandbox from the image:
-apptainer build --sandbox nix-sandbox/ nix_latest.sif
+apptainer build --sandbox nix-sandbox/ nix_2.32.1.sif
 
 4. Create necessary mount points in the sandbox:
 mkdir -p nix-sandbox/scratch && mkdir -p nix-sandbox/lscratch && mkdir -p nix-sandbox/dipc && mkdir -p nix-sandbox/data && mkdir -p nix-sandbox/home
@@ -42,7 +42,7 @@ apptainer exec --writable -B /lscratch:/lscratch /lscratch/$USER/nix-sandbox/ ni
 (You're now in a shell with all nain4 dependencies (Geant4, ROOT, etc.) available.)
 
 3. Move the folders and files to /scratch/ (in /lscratch/$USER):
-chmod -R 777 nix-sandbox/ && mv nix-sandbox/ /scratch/$USER/ && mv nix_latest.sif /scratch/$USER/ && mv neutron_bg/ /scratch/$USER/
+chmod -R 777 nix-sandbox/ && mv nix-sandbox/ /scratch/$USER/ && mv nix_2.32.1.sif /scratch/$USER/ && mv neutron_bg/ /scratch/$USER/
 
 4. Usage of the project(in the container):
 just install
